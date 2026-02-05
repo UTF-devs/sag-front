@@ -2,10 +2,8 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useLanguage } from "../contexts/LanguageContext";
 import { client } from "../services";
-import { Navbar } from "../components/Navbar";
 import ProductCard from "../screens/CatalogProductsPage/ProductCard";
 import { ContactInfoSection } from "../screens/HomePage/sections/ContactInfoSection";
-import { Footer } from "../components/ui/Footer";
 import { Filter as FilterIcon, ChevronLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -164,7 +162,6 @@ const SearchResults = () => {
 
   return (
     <div className="bg-[#FFFCE0] md:pt-28 pt-24">
-      <Navbar />
       <div className="container mx-auto px-4 py-6">
         <div className="mb-6">
           <div className="flex md:mb-12 mb-7 items-center text-base text-gray-600">
@@ -307,7 +304,6 @@ const SearchResults = () => {
         </div>
       </div>
       <ContactInfoSection />
-      <Footer />
     </div>
   );
 };

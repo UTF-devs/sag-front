@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Navbar } from "../../components/Navbar";
-import { Footer } from "../../components/ui/Footer";
 import {
   Eye,
   Clock,
@@ -59,8 +57,6 @@ const NewsDetail = () => {
 
   return (
     <div className="md:pt-28 pt-24 bg-[#FFFCE0] min-h-screen flex flex-col">
-      <Navbar />
-
       <div className="container mx-auto px-4 py-8 flex-1">
         <button
           onClick={() => navigate("/methods")}
@@ -120,7 +116,6 @@ const NewsDetail = () => {
       </div>
 
       <ContactInfoSection />
-      <Footer />
     </div>
   );
 };

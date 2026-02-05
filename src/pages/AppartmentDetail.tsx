@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/ui/Footer";
 import { ChevronLeft } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { ContactInfoSection } from "../screens/HomePage/sections/ContactInfoSection";
@@ -68,7 +66,6 @@ useEffect(() => {
 
   return (
     <div className="bg-[#FFFCE0] md:pt-28 pt-24">
-      <Navbar />
       <div className="container mx-auto px-4 py-6">
         <div className="mb-6">
           <div className="flex items-center text-base text-gray-600 mb-4">
@@ -156,7 +153,6 @@ useEffect(() => {
         </div>
       </div>
       <ContactInfoSection />
-      <Footer />
     </div>
   );
 };

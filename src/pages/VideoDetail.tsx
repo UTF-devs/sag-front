@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/ui/Footer";
 import {
   Eye,
   Clock,
@@ -130,7 +128,6 @@ const VideoDetail = () => {
       </div>
 
       <ContactInfoSection />
-      <Footer />
     </div>
   );
 };

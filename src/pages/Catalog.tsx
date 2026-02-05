@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/ui/Footer";
 import Filter from "../screens/CatalogPage/Filter";
 import ProductCard from "../screens/CatalogPage/ProductCard";
 import { Filter as FilterIcon, ChevronLeft } from "lucide-react";
@@ -80,7 +78,8 @@ const Catalog = () => {
     color: [],
   });
 
-  const mapLang = (lang: string) => (lang === "rus" ? "ru" : lang === "uzb" ? "uz" : "en");
+  const mapLang = (lang: string) =>
+    lang === "rus" ? "ru" : lang === "uzb" ? "uz" : "en";
 
   const getSortValue = (sortOption: string) => {
     switch (sortOption) {
@@ -106,15 +105,23 @@ const Catalog = () => {
         if (sortValue) {
           params.append("sort_by", sortValue);
         }
-        if (filters.room?.length) params.append("rooms", filters.room.join(","));
-        if (filters.color?.length) params.append("colors", filters.color.join(","));
-        if (filters.shape?.length) params.append("shapes", filters.shape.join(","));
-        if (filters.style?.length) params.append("styles", filters.style.join(","));
+        if (filters.room?.length)
+          params.append("rooms", filters.room.join(","));
+        if (filters.color?.length)
+          params.append("colors", filters.color.join(","));
+        if (filters.shape?.length)
+          params.append("shapes", filters.shape.join(","));
+        if (filters.style?.length)
+          params.append("styles", filters.style.join(","));
 
         const queryString = params.toString();
-        const url = `/${lang}/api/v1/catalog/filter_and_sort_carpets/${id}/${queryString ? `?${queryString}` : ""}`;
+        const url = `/${lang}/api/v1/catalog/filter_and_sort_carpets/${id}/${
+          queryString ? `?${queryString}` : ""
+        }`;
         const res = await client.get(url);
-        const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+        const data = Array.isArray(res.data)
+          ? res.data
+          : res.data.results || [];
         setRugData(data);
         setOriginalRugData(data);
       } catch (err) {
@@ -128,7 +135,9 @@ const Catalog = () => {
 
     const fetchFilterOptions = async () => {
       try {
-        const res = await client.get(`/${lang}/api/v1/catalog/filter_choices/${id}/`);
+        const res = await client.get(
+          `/${lang}/api/v1/catalog/filter_choices/${id}/`,
+        );
         let processedData = { ...res.data };
         if (Array.isArray(processedData.styles?.[0])) {
           processedData.styles = processedData.styles[0];
@@ -171,7 +180,9 @@ const Catalog = () => {
       }
 
       const queryString = params.toString();
-      const url = `/${lang}/api/v1/catalog/filter_and_sort_carpets/${id}/${queryString ? `?${queryString}` : ""}`;
+      const url = `/${lang}/api/v1/catalog/filter_and_sort_carpets/${id}/${
+        queryString ? `?${queryString}` : ""
+      }`;
       const res = await client.get(url);
       setRugData(Array.isArray(res.data) ? res.data : res.data.results || []);
     } catch (err) {
@@ -239,7 +250,9 @@ const Catalog = () => {
       }
 
       const queryString = params.toString();
-      const url = `/${lang}/api/v1/catalog/filter_and_sort_carpets/${id}/${queryString ? `?${queryString}` : ""}`;
+      const url = `/${lang}/api/v1/catalog/filter_and_sort_carpets/${id}/${
+        queryString ? `?${queryString}` : ""
+      }`;
       const res = await client.get(url);
       setRugData(Array.isArray(res.data) ? res.data : res.data.results || []);
     } catch (err) {
@@ -256,7 +269,6 @@ const Catalog = () => {
 
   return (
     <div className="bg-[#FFFCE0] md:pt-28 pt-24">
-      <Navbar />
       <div className="container min-h-[500px] mx-auto px-4 py-6">
         <div className="mb-6">
           <div className="flex md:mb-12 mb-7 items-center text-base text-gray-600">
@@ -308,16 +320,24 @@ const Catalog = () => {
             </div>
           )}
 
-          <div className={`${showFilters ? "md:w-[calc(100%-320px)]" : "w-full"}`}>
+          <div
+            className={`${showFilters ? "md:w-[calc(100%-320px)]" : "w-full"}`}
+          >
             {loading ? (
               <div className="text-center py-12">
-                <p className="text-gray-500">{t("common.loading") || "Yuklanmoqda..."}</p>
+                <p className="text-gray-500">
+                  {t("common.loading") || "Yuklanmoqda..."}
+                </p>
               </div>
             ) : error ? (
               <div className="text-center py-12 text-red-500">{error}</div>
             ) : rugData.length > 0 ? (
               <>
-                <div className={`grid grid-cols-2 sm:grid-cols-2 ${showFilters ? "lg:grid-cols-3" : "lg:grid-cols-4"} gap-4`}>
+                <div
+                  className={`grid grid-cols-2 sm:grid-cols-2 ${
+                    showFilters ? "lg:grid-cols-3" : "lg:grid-cols-4"
+                  } gap-4`}
+                >
                   {currentRugs.map((rug) => (
                     <ProductCard
                       key={rug.id}
@@ -325,27 +345,33 @@ const Catalog = () => {
                       name={rug.name}
                       image={rug.image}
                       collectionType={rug.collection_type}
-                      categoryId={rug.catalog.id} styleId={0}                    />
+                      categoryId={rug.catalog.id}
+                      styleId={0}
+                    />
                   ))}
                 </div>
-                
+
                 {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="flex justify-center mt-8 space-x-2">
                     <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(prev - 1, 1))
+                      }
                       disabled={currentPage === 1}
                       className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50"
                     >
                       {t("previous") || "Oldingi"}
                     </button>
-                    
+
                     <span className="px-4 py-2">
                       {currentPage} / {totalPages}
                     </span>
-                    
+
                     <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                      }
                       disabled={currentPage === totalPages}
                       className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50"
                     >
@@ -357,7 +383,8 @@ const Catalog = () => {
             ) : (
               <div className="text-center py-12">
                 <p className="text-gray-500">
-                  {t("no_products_found") || "Hech qanday mahsulot topilmadi. Filtrlarni o'zgartirib ko'ring."}
+                  {t("no_products_found") ||
+                    "Hech qanday mahsulot topilmadi. Filtrlarni o'zgartirib ko'ring."}
                 </p>
               </div>
             )}
@@ -365,7 +392,6 @@ const Catalog = () => {
         </div>
       </div>
       <ContactInfoSection />
-      <Footer />
     </div>
   );
 };

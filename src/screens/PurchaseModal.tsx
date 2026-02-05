@@ -11,7 +11,12 @@ interface PurchaseModalProps {
 }
 
 const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  
+  // Map language to API format
+  const mapLang = (lang: string) =>
+    lang === "rus" ? "ru" : lang === "uzb" ? "uz" : "en";
+  
   const [form, setForm] = useState({
     full_name: "",
     phone_number: "",
@@ -101,7 +106,8 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose }) => {
     }
 
     try {
-      const response = await client.post("/uz/api/v1/contact/contact/", {
+      const lang = mapLang(language);
+      const response = await client.post(`/${lang}/api/v1/contact/contact/`, {
         full_name: form.full_name,
         phone_number: form.phone_number,
         city: cities.indexOf(form.city) + 1 || null,

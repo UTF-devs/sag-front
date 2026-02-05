@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/ui/Footer";
 import ProductCard from "../screens/SalesPage/ProductCard";
 import { ChevronLeft } from 'lucide-react';
 import { ContactInfoSection } from "../screens/HomePage/sections/ContactInfoSection";
@@ -42,8 +40,6 @@ const Sales = () => {
 
   return (
     <div className="bg-[#FFFCE0] md:pt-28 pt-24">
-      <Navbar />
-
       <div className="container mx-auto px-4 py-6">
         <div className="mb-6">
           <div className="flex items-center text-base text-gray-600 mb-4">
@@ -110,7 +106,6 @@ const Sales = () => {
         </div>
       </div>
       <ContactInfoSection />
-      <Footer />
     </div>
   );
 };

@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/ui/Footer";
 import { ChevronLeft } from "lucide-react";
 import { ContactInfoSection } from "../screens/HomePage/sections/ContactInfoSection";
 import ProductCard from "../screens/SalesPage/ProductCardSales";
@@ -150,7 +148,6 @@ const SalesDetail = () => {
         </div>
       </div>
       <ContactInfoSection />
-      <Footer />
     </div>
   );
 };
