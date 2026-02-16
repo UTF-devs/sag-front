@@ -6,7 +6,6 @@ import { Filter as FilterIcon, ChevronLeft } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { client } from "../../services";
-import { Navbar } from "../../components/Navbar";
 
 interface Rug {
   price: number | undefined;
@@ -54,7 +53,9 @@ const Catalog = () => {
   const name = location.state?.name;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
+  const [showFilters, setShowFilters] = useState(
+    () => typeof window !== "undefined" && window.innerWidth >= 1024,
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const [sortOption, setSortOption] = useState("4");
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
@@ -64,7 +65,14 @@ const Catalog = () => {
     rooms: [],
     colors: [],
     shapes: [],
-    labels: { catalog: "", collections: "", styles: "", rooms: "", colors: "", shapes: "" },
+    labels: {
+      catalog: "",
+      collections: "",
+      styles: "",
+      rooms: "",
+      colors: "",
+      shapes: "",
+    },
   });
   const [filters, setFilters] = useState({
     collection: [] as number[],
@@ -76,7 +84,8 @@ const Catalog = () => {
 
   const itemsPerPage = 21;
 
-  const mapLang = (lang: string) => (lang === "rus" ? "ru" : lang === "uzb" ? "uz" : "en");
+  const mapLang = (lang: string) =>
+    lang === "rus" ? "ru" : lang === "uzb" ? "uz" : "en";
 
   useEffect(() => {
     const handleResize = () => {
@@ -91,11 +100,17 @@ const Catalog = () => {
 
     const fetchFilterOptions = async () => {
       try {
-        const res = await client.get(`/${lang}/api/v1/catalog/filter_choices_for_carpet_model/${categoryId}/`);
+        const res = await client.get(
+          `/${lang}/api/v1/catalog/filter_choices_for_carpet_model/${categoryId}/`,
+        );
         setFilterOptions({
           catalog: res.data.catalog || { id: 0, name: "" },
           collections: res.data.collections || [],
-          styles: Array.isArray(res.data.styles) ? (Array.isArray(res.data.styles[0]) ? res.data.styles[0] : res.data.styles) : [],
+          styles: Array.isArray(res.data.styles)
+            ? Array.isArray(res.data.styles[0])
+              ? res.data.styles[0]
+              : res.data.styles
+            : [],
           rooms: res.data.rooms || [],
           colors: res.data.colors || [],
           shapes: res.data.shapes || [],
@@ -118,7 +133,9 @@ const Catalog = () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await client.get(`/${lang}/api/v1/catalog/get_carpet_models_by_carpet_id/${id}/`);
+        const res = await client.get(
+          `/${lang}/api/v1/catalog/get_carpet_models_by_carpet_id/${id}/`,
+        );
         setRugData(res.data);
       } catch (err) {
         console.error("Error fetching all rugs:", err);
@@ -135,22 +152,31 @@ const Catalog = () => {
         const queryParams = qs.stringify(
           {
             sort_by: sortOption !== "4" ? sortOption : undefined,
-            collections: filters.collection.length > 0 ? filters.collection.join(",") : undefined,
-            styles: filters.style.length > 0 ? filters.style.join(",") : undefined,
+            collections:
+              filters.collection.length > 0
+                ? filters.collection.join(",")
+                : undefined,
+            styles:
+              filters.style.length > 0 ? filters.style.join(",") : undefined,
             rooms: filters.room.length > 0 ? filters.room.join(",") : undefined,
-            colors: filters.color.length > 0 ? filters.color.join(",") : undefined,
-            shapes: filters.shape.length > 0 ? filters.shape.join(",") : undefined,
+            colors:
+              filters.color.length > 0 ? filters.color.join(",") : undefined,
+            shapes:
+              filters.shape.length > 0 ? filters.shape.join(",") : undefined,
           },
-          { skipNull: true, skipEmptyString: true }
+          { skipNull: true, skipEmptyString: true },
         );
 
         const res = await client.get(
-          `/${lang}/api/v1/catalog/filter_and_sort_carpets_for_carpet_model/${categoryId}/?${queryParams}`
+          `/${lang}/api/v1/catalog/filter_and_sort_carpets_for_carpet_model/${categoryId}/?${queryParams}`,
         );
         setRugData(res.data);
       } catch (err) {
         console.error("Error fetching filtered rugs:", err);
-        setError(t("catalog.error.rugs") || "Filtrlangan mahsulotlarni yuklashda xatolik");
+        setError(
+          t("catalog.error.rugs") ||
+            "Filtrlangan mahsulotlarni yuklashda xatolik",
+        );
       } finally {
         setLoading(false);
       }
@@ -208,7 +234,6 @@ const Catalog = () => {
 
   return (
     <div className="bg-[#FFFCE0] md:pt-28 pt-24">
-      <Navbar />
       <div className="container mx-auto px-4 py-6">
         {error && (
           <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
@@ -219,7 +244,10 @@ const Catalog = () => {
           <div className="flex md:mb-12 mb-7 items-center text-base text-gray-600">
             <ChevronLeft size={20} className="text-gray600" />
             <Link to="/">{t("nav.home")}</Link>
-            <div className="pl-3 flex items-center cursor-pointer" onClick={() => window.history.back()}>
+            <div
+              className="pl-3 flex items-center cursor-pointer"
+              onClick={() => window.history.back()}
+            >
               <ChevronLeft size={20} className="text-gray-600" />
               {rugData[0]?.catalog?.name}
             </div>
@@ -248,10 +276,11 @@ const Catalog = () => {
                 <button
                   key={value}
                   onClick={() => setSortOption(value)}
-                  className={`px-4 py-2 whitespace-nowrap border-b-2 transition-colors ${sortOption === value
+                  className={`px-4 py-2 whitespace-nowrap border-b-2 transition-colors ${
+                    sortOption === value
                       ? "text-gray-800 font-semibold border-gray-800"
                       : "text-gray-600 border-transparent hover:border-gray-300"
-                    }`}
+                  }`}
                 >
                   {label}
                 </button>
@@ -273,14 +302,21 @@ const Catalog = () => {
             </div>
           )}
 
-          <div className={`${showFilters ? "md:w-[calc(100%-320px)]" : "w-full min-h-[500px]"}`}>
+          <div
+            className={`${
+              showFilters ? "md:w-[calc(100%-320px)]" : "w-full min-h-[500px]"
+            }`}
+          >
             {loading ? (
               <p className="text-center py-12">{t("common.loading") || ""}</p>
             ) : rugData.length > 0 ? (
               <>
-                <div className={`grid grid-cols-2 sm:grid-cols-2 ${showFilters ? "lg:grid-cols-3" : "lg:grid-cols-4"} gap-8`}>
+                <div
+                  className={`grid grid-cols-2 sm:grid-cols-2 ${
+                    showFilters ? "lg:grid-cols-3" : "lg:grid-cols-4"
+                  } gap-8`}
+                >
                   {currentRugs.map((rug) => {
-
                     return (
                       <ProductCard
                         key={rug.id}
@@ -292,13 +328,14 @@ const Catalog = () => {
                       />
                     );
                   })}
-
                 </div>
 
                 {totalPages > 1 && (
                   <div className="flex justify-center items-center gap-2 mt-8">
                     <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      onClick={() =>
+                        setCurrentPage(Math.max(1, currentPage - 1))
+                      }
                       disabled={currentPage === 1}
                       className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
                     >
@@ -309,7 +346,10 @@ const Catalog = () => {
                       const visiblePages = 5;
                       const halfVisible = Math.floor(visiblePages / 2);
                       let startPage = Math.max(1, currentPage - halfVisible);
-                      let endPage = Math.min(totalPages, currentPage + halfVisible);
+                      let endPage = Math.min(
+                        totalPages,
+                        currentPage + halfVisible,
+                      );
 
                       if (endPage - startPage < visiblePages - 1) {
                         startPage = Math.max(1, endPage - (visiblePages - 1));
@@ -321,13 +361,21 @@ const Catalog = () => {
                           <button
                             key={1}
                             onClick={() => setCurrentPage(1)}
-                            className={`px-3 py-2 rounded ${currentPage === 1 ? "bg-[#D7CCC8] text-white" : "text-gray-600 hover:bg-gray-100"
-                              }`}
+                            className={`px-3 py-2 rounded ${
+                              currentPage === 1
+                                ? "bg-[#D7CCC8] text-white"
+                                : "text-gray-600 hover:bg-gray-100"
+                            }`}
                           >
                             1
-                          </button>
+                          </button>,
                         );
-                        if (startPage > 2) pages.push(<span key="start-ellipsis" className="px-2">...</span>);
+                        if (startPage > 2)
+                          pages.push(
+                            <span key="start-ellipsis" className="px-2">
+                              ...
+                            </span>,
+                          );
                       }
 
                       for (let i = startPage; i <= endPage; i++) {
@@ -335,25 +383,36 @@ const Catalog = () => {
                           <button
                             key={i}
                             onClick={() => setCurrentPage(i)}
-                            className={`px-3 py-2 rounded ${currentPage === i ? "bg-[#D7CCC8] text-white" : "text-gray-600 hover:bg-gray-100"
-                              }`}
+                            className={`px-3 py-2 rounded ${
+                              currentPage === i
+                                ? "bg-[#D7CCC8] text-white"
+                                : "text-gray-600 hover:bg-gray-100"
+                            }`}
                           >
                             {i}
-                          </button>
+                          </button>,
                         );
                       }
 
                       if (endPage < totalPages) {
-                        if (endPage < totalPages - 1) pages.push(<span key="end-ellipsis" className="px-2">...</span>);
+                        if (endPage < totalPages - 1)
+                          pages.push(
+                            <span key="end-ellipsis" className="px-2">
+                              ...
+                            </span>,
+                          );
                         pages.push(
                           <button
                             key={totalPages}
                             onClick={() => setCurrentPage(totalPages)}
-                            className={`px-3 py-2 rounded ${currentPage === totalPages ? "bg-[#D7CCC8] text-white" : "text-gray-600 hover:bg-gray-100"
-                              }`}
+                            className={`px-3 py-2 rounded ${
+                              currentPage === totalPages
+                                ? "bg-[#D7CCC8] text-white"
+                                : "text-gray-600 hover:bg-gray-100"
+                            }`}
                           >
                             {totalPages}
-                          </button>
+                          </button>,
                         );
                       }
 
@@ -361,7 +420,9 @@ const Catalog = () => {
                     })()}
 
                     <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      onClick={() =>
+                        setCurrentPage(Math.min(totalPages, currentPage + 1))
+                      }
                       disabled={currentPage === totalPages}
                       className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
                     >
@@ -372,7 +433,9 @@ const Catalog = () => {
               </>
             ) : (
               <div className="text-center py-12">
-                <p className="text-gray-500">{t("catalog.noProducts") || "Mahsulot topilmadi"}</p>
+                <p className="text-gray-500">
+                  {t("catalog.noProducts") || "Mahsulot topilmadi"}
+                </p>
               </div>
             )}
           </div>

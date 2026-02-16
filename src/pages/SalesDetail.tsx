@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/ui/Footer";
 import { ChevronLeft } from "lucide-react";
 import { ContactInfoSection } from "../screens/HomePage/sections/ContactInfoSection";
 import ProductCard from "../screens/SalesPage/ProductCardSales";
@@ -38,23 +36,27 @@ const SalesDetail = () => {
       setError(null);
       try {
         const res = await client.get(
-          `/${lang}/api/v1/discount/get_main_discounted_carpet_model/${id}/`
+          `/${lang}/api/v1/discount/get_main_discounted_carpet_model/${id}/`,
         );
-        console.log("API javobi:", res.data);
-        
+
         setRoomName(
-          location.state?.name ||
-          t("noName") || 
-          "Xona nomi mavjud emas" 
+          location.state?.name || t("noName") || "Xona nomi mavjud emas",
         );
         // Agar ma'lumotlar "results" ichida bo'lsa yoki array bo'lmasa
-        const items = Array.isArray(res.data) ? res.data : res.data.results || [];
+        const items = Array.isArray(res.data)
+          ? res.data
+          : res.data.results || [];
         setRugData(items);
       } catch (err) {
         console.error("API xatosi:", err);
-        setError(t("catalog.noProducts") || "Ma'lumotlarni yuklashda xatolik yuz berdi");
+        setError(
+          t("catalog.noProducts") ||
+            "Ma'lumotlarni yuklashda xatolik yuz berdi",
+        );
         setRugData([]);
-        setRoomName(location.state?.name || t("noName") || "Xona nomi mavjud emas");
+        setRoomName(
+          location.state?.name || t("noName") || "Xona nomi mavjud emas",
+        );
       } finally {
         setLoading(false);
       }
@@ -89,7 +91,9 @@ const SalesDetail = () => {
         <div className="w-full min-h-[500px]">
           {loading ? (
             <div className="text-center py-12">
-              <p className="text-gray-500">{t("common.loading") || "Yuklanmoqda..."}</p>
+              <p className="text-gray-500">
+                {t("common.loading") || "Yuklanmoqda..."}
+              </p>
             </div>
           ) : error ? (
             <div className="text-center py-12 text-red-500">{error}</div>
@@ -119,21 +123,25 @@ const SalesDetail = () => {
                   >
                     ←
                   </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-2 rounded ${
-                        currentPage === page
-                          ? "bg-[#D7CCC8] text-white"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-3 py-2 rounded ${
+                          currentPage === page
+                            ? "bg-[#D7CCC8] text-white"
+                            : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ),
+                  )}
                   <button
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    onClick={() =>
+                      setCurrentPage(Math.min(totalPages, currentPage + 1))
+                    }
                     disabled={currentPage === totalPages}
                     className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
                   >
@@ -150,7 +158,6 @@ const SalesDetail = () => {
         </div>
       </div>
       <ContactInfoSection />
-      <Footer />
     </div>
   );
 };
