@@ -159,7 +159,10 @@ export default function CarpetView({
 
   // Maskani qizil overlay (object-cover) bilan ustma-ust qilish; useMemo — qayta hisoblashni kamaytiradi
   const maskStyle = useMemo(() => {
-    if (!floorResult?.floorMaskDataUrl) return undefined;
+    if (!floorResult?.floorMaskDataUrl) {
+      console.log("[CarpetView] No mask style - floorResult:", floorResult);
+      return undefined;
+    }
     const hasMaskAlign =
       containerSize.w > 0 &&
       containerSize.h > 0 &&
@@ -240,6 +243,15 @@ export default function CarpetView({
       isRotating,
     ],
   );
+
+  // Debug: carpet image URL'ni console'ga chiqarish (carpetContainerStyle va maskStyle dan keyin)
+  useEffect(() => {
+    if (carpet?.image) {
+      console.log("[CarpetView] Carpet image URL:", carpet.image);
+      console.log("[CarpetView] Carpet container style:", carpetContainerStyle);
+      console.log("[CarpetView] Mask style:", maskStyle);
+    }
+  }, [carpet?.image, carpetContainerStyle, maskStyle]);
 
   // Slider tortilganda document bo‘yicha move/up qabul qilish
   useEffect(() => {
@@ -508,8 +520,13 @@ export default function CarpetView({
                 </div>
               )} */}
               <div
-                className="absolute left-0 right-0 pointer-events-none"
-                style={{ top: 10, bottom: 0, ...maskStyle }}
+                className="absolute left-0 right-0 pointer-events-none z-[3]"
+                style={{
+                  top: 10,
+                  bottom: 0,
+                  ...maskStyle,
+                  visibility: "visible",
+                }}
               >
                 <div
                   data-carpet-container
@@ -517,37 +534,52 @@ export default function CarpetView({
                   style={{
                     ...carpetContainerStyle,
                     cursor: isDragging ? "grabbing" : "grab",
+                    zIndex: 3,
+                    visibility: "visible",
                   }}
                   onMouseDown={handleMouseDown}
                   onTouchStart={handleTouchStart}
                   onWheel={handleWheel}
                 >
-                  <div className="relative w-full h-full">
+                  <div className="relative w-full h-full" style={{ zIndex: 3 }}>
                     <img
-                      src={carpet?.image}
-                      alt={carpet?.name}
+                      src={carpet?.image || ""}
+                      alt={carpet?.name || "Carpet"}
                       className="shadow-2xl pointer-events-none w-full h-full"
-                      style={{ opacity: 1, display: "block" }}
+                      style={{
+                        opacity: 1,
+                        display: "block",
+                        visibility: "visible",
+                        zIndex: 3,
+                        position: "relative",
+                      }}
                       draggable={false}
                       crossOrigin="anonymous"
                       onError={(e) => {
                         console.error(
                           "[CarpetView] Carpet image failed to load:",
-                          carpet.image,
+                          carpet?.image,
                         );
                         // Fallback: proxy URL'ni sinab ko'rish
                         const target = e.target as HTMLImageElement;
-                        if (!target.src.includes("/api/carpet-image")) {
-                          const proxiedUrl = getProxiedCarpetUrl(carpet?.image);
-                          if (proxiedUrl !== carpet?.image) {
+                        if (
+                          carpet?.image &&
+                          !target.src.includes("/api/carpet-image")
+                        ) {
+                          const proxiedUrl = getProxiedCarpetUrl(carpet.image);
+                          if (proxiedUrl !== carpet.image) {
                             target.src = proxiedUrl;
                           }
                         }
                       }}
-                      onLoad={() => {
+                      onLoad={(e) => {
                         console.log(
                           "[CarpetView] Carpet image loaded successfully:",
-                          carpet.image,
+                          carpet?.image,
+                          "Image dimensions:",
+                          (e.target as HTMLImageElement).naturalWidth,
+                          "x",
+                          (e.target as HTMLImageElement).naturalHeight,
                         );
                       }}
                     />
