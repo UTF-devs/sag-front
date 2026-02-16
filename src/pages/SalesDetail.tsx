@@ -5,6 +5,7 @@ import { ContactInfoSection } from "../screens/HomePage/sections/ContactInfoSect
 import ProductCard from "../screens/SalesPage/ProductCardSales";
 import { useLanguage } from "../contexts/LanguageContext";
 import { client } from "../services";
+import { Navbar } from "../components/Navbar";
 
 interface Rug {
   id: number;

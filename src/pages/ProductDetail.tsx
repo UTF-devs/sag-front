@@ -199,19 +199,24 @@ const ProductDetail = () => {
               </div>
               <button
                 className="mt-4 px-6 py-2 bg-[#CDAA7D] hover:bg-[#b8986d] text-white font-semibold rounded transition-colors"
-                onClick={() => navigate(`/carpet-view/${id}`, {
-                  state: {
-                    carpet: {
-                      id: product?.id || 0,
-                      name: product?.name || "",
-                      image: selectedImage,
-                      price: product?.shapes && selectedShape && product.shapes[selectedShape] 
-                        ? `${product.shapes[selectedShape][0]?.price.toLocaleString()} ${t("currency")}` 
-                        : "",
-                      description: product?.character || "",
-                    }
-                  }
-                })}
+                onClick={() =>
+                  navigate(`/carpet-view/${id}`, {
+                    state: {
+                      carpet: {
+                        id: product?.id || 0,
+                        name: product?.name || "",
+                        image: selectedImage,
+                        price:
+                          product?.shapes &&
+                          selectedShape &&
+                          product.shapes[selectedShape]
+                            ? `${product.shapes[selectedShape][0]?.price.toLocaleString()} ${t("currency")}`
+                            : "",
+                        description: product?.character || "",
+                      },
+                    },
+                  })
+                }
               >
                 {t("product.try_on")}
               </button>
