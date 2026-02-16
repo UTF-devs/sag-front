@@ -48,12 +48,15 @@ const SearchResults = () => {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
+  const [showFilters, setShowFilters] = useState(
+    () => typeof window !== "undefined" && window.innerWidth >= 1024,
+  );
   const [currentPage, setCurrentPage] = useState(1);
 
   const itemsPerPage = 21;
 
-  const mapLang = (lang: string) => (lang === "rus" ? "ru" : lang === "uzb" ? "uz" : "en");
+  const mapLang = (lang: string) =>
+    lang === "rus" ? "ru" : lang === "uzb" ? "uz" : "en";
 
   // Consolidated useEffect for window resize
   useEffect(() => {
@@ -68,14 +71,53 @@ const SearchResults = () => {
     const queryParams = new URLSearchParams(location.search);
     const query = queryParams.get("query") || "";
     const sort_by = queryParams.get("sort_by") || ""; // Default to empty for "All"
-    const styles = queryParams.get("styles")?.split(",").map(Number).filter(n => !isNaN(n)) || [];
-    const collections = queryParams.get("collections")?.split(",").map(Number).filter(n => !isNaN(n)) || [];
-    const rooms = queryParams.get("rooms")?.split(",").map(Number).filter(n => !isNaN(n)) || [];
-    const colors = queryParams.get("colors")?.split(",").map(Number).filter(n => !isNaN(n)) || [];
-    const shapes = queryParams.get("shapes")?.split(",").map(Number).filter(n => !isNaN(n)) || [];
-    const prizes = queryParams.get("prizes")?.split(",").map(Number).filter(n => !isNaN(n)) || [];
+    const styles =
+      queryParams
+        .get("styles")
+        ?.split(",")
+        .map(Number)
+        .filter((n) => !isNaN(n)) || [];
+    const collections =
+      queryParams
+        .get("collections")
+        ?.split(",")
+        .map(Number)
+        .filter((n) => !isNaN(n)) || [];
+    const rooms =
+      queryParams
+        .get("rooms")
+        ?.split(",")
+        .map(Number)
+        .filter((n) => !isNaN(n)) || [];
+    const colors =
+      queryParams
+        .get("colors")
+        ?.split(",")
+        .map(Number)
+        .filter((n) => !isNaN(n)) || [];
+    const shapes =
+      queryParams
+        .get("shapes")
+        ?.split(",")
+        .map(Number)
+        .filter((n) => !isNaN(n)) || [];
+    const prizes =
+      queryParams
+        .get("prizes")
+        ?.split(",")
+        .map(Number)
+        .filter((n) => !isNaN(n)) || [];
 
-    const updatedFilters = { query, sort_by, styles, collections, rooms, colors, shapes, prizes };
+    const updatedFilters = {
+      query,
+      sort_by,
+      styles,
+      collections,
+      rooms,
+      colors,
+      shapes,
+      prizes,
+    };
 
     setSearchQuery(query);
     setFilters(updatedFilters); // Simplified state update
@@ -97,16 +139,15 @@ const SearchResults = () => {
         }
 
         if (styles.length > 0) params.append("styles", styles.join(","));
-        if (collections.length > 0) params.append("collections", collections.join(","));
+        if (collections.length > 0)
+          params.append("collections", collections.join(","));
         if (rooms.length > 0) params.append("rooms", rooms.join(","));
         if (colors.length > 0) params.append("colors", colors.join(","));
         if (shapes.length > 0) params.append("shapes", shapes.join(","));
         if (prizes.length > 0) params.append("prizes", prizes.join(","));
 
-        console.log("API URL:", `http://api.gilamlardunyosisag.uz/${lang}/api/v1/home/filter_and_sort_carpet_model_for_search/?${params.toString()}`);
-
         const response = await client.get(
-          `/${lang}/api/v1/home/filter_and_sort_carpet_model_for_search/?${params.toString()}`
+          `/${lang}/api/v1/home/filter_and_sort_carpet_model_for_search/?${params.toString()}`,
         );
         setResults(response.data);
       } catch (err) {
@@ -146,12 +187,18 @@ const SearchResults = () => {
       params.append("sort_by", newFilters.sort_by);
     }
 
-    if (newFilters.styles.length > 0) params.append("styles", newFilters.styles.join(","));
-    if (newFilters.collections.length > 0) params.append("collections", newFilters.collections.join(","));
-    if (newFilters.rooms.length > 0) params.append("rooms", newFilters.rooms.join(","));
-    if (newFilters.colors.length > 0) params.append("colors", newFilters.colors.join(","));
-    if (newFilters.shapes.length > 0) params.append("shapes", newFilters.shapes.join(","));
-    if (newFilters.prizes.length > 0) params.append("prizes", newFilters.prizes.join(","));
+    if (newFilters.styles.length > 0)
+      params.append("styles", newFilters.styles.join(","));
+    if (newFilters.collections.length > 0)
+      params.append("collections", newFilters.collections.join(","));
+    if (newFilters.rooms.length > 0)
+      params.append("rooms", newFilters.rooms.join(","));
+    if (newFilters.colors.length > 0)
+      params.append("colors", newFilters.colors.join(","));
+    if (newFilters.shapes.length > 0)
+      params.append("shapes", newFilters.shapes.join(","));
+    if (newFilters.prizes.length > 0)
+      params.append("prizes", newFilters.prizes.join(","));
 
     navigate(`/search?${params.toString()}`, { replace: true });
   };
@@ -169,7 +216,9 @@ const SearchResults = () => {
             <Link to="/">{t("nav.home")}</Link>
             <div className="pl-3 flex items-center font-semibold cursor-pointer">
               <ChevronLeft size={20} className="text-gray-600" />
-              {searchQuery || mapCollectionType(Number(filters.sort_by)) || t("product.breadcrumb.search")}
+              {searchQuery ||
+                mapCollectionType(Number(filters.sort_by)) ||
+                t("product.breadcrumb.search")}
             </div>
           </div>
 
@@ -183,7 +232,9 @@ const SearchResults = () => {
               ].map(({ label, value }) => (
                 <button
                   key={value}
-                  onClick={() => handleFilterChange({ ...filters, sort_by: value })}
+                  onClick={() =>
+                    handleFilterChange({ ...filters, sort_by: value })
+                  }
                   className={`px-4 py-2 whitespace-nowrap border-b-2 transition-colors ${
                     filters.sort_by === value
                       ? "text-gray-800 font-semibold border-gray-800"
@@ -200,10 +251,14 @@ const SearchResults = () => {
         <div className="flex flex-col md:flex-row gap-6">
           <div className="w-full min-h-[500px]">
             {loading ? (
-              <p className="text-center py-12">{t("common.loading") || "Yuklanmoqda..."}</p>
+              <p className="text-center py-12">
+                {t("common.loading") || "Yuklanmoqda..."}
+              </p>
             ) : results.length > 0 ? (
               <>
-                <div className={`grid grid-cols-2 sm:grid-cols-2 ${showFilters ? "lg:grid-cols-4" : "lg:grid-cols-4"} gap-8`}>
+                <div
+                  className={`grid grid-cols-2 sm:grid-cols-2 ${showFilters ? "lg:grid-cols-4" : "lg:grid-cols-4"} gap-8`}
+                >
                   {currentResults.map((product) => (
                     <ProductCard
                       key={product.id}
@@ -211,8 +266,14 @@ const SearchResults = () => {
                       name={product.name}
                       image={product.image}
                       price={product.price}
-                      collection_type={mapCollectionType(product.collection_type)}
-                      onClick={() => navigate(`/catalog/${product.collection_type}/product/${product.id}`)}
+                      collection_type={mapCollectionType(
+                        product.collection_type,
+                      )}
+                      onClick={() =>
+                        navigate(
+                          `/catalog/${product.collection_type}/product/${product.id}`,
+                        )
+                      }
                     />
                   ))}
                 </div>
@@ -220,7 +281,9 @@ const SearchResults = () => {
                 {totalPages > 1 && (
                   <div className="flex justify-center items-center gap-2 mt-8">
                     <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      onClick={() =>
+                        setCurrentPage(Math.max(1, currentPage - 1))
+                      }
                       disabled={currentPage === 1}
                       className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
                     >
@@ -231,7 +294,10 @@ const SearchResults = () => {
                       const visiblePages = 5;
                       const halfVisible = Math.floor(visiblePages / 2);
                       let startPage = Math.max(1, currentPage - halfVisible);
-                      let endPage = Math.min(totalPages, currentPage + halfVisible);
+                      let endPage = Math.min(
+                        totalPages,
+                        currentPage + halfVisible,
+                      );
 
                       if (endPage - startPage < visiblePages - 1) {
                         startPage = Math.max(1, endPage - (visiblePages - 1));
@@ -244,13 +310,20 @@ const SearchResults = () => {
                             key={1}
                             onClick={() => setCurrentPage(1)}
                             className={`px-3 py-2 rounded ${
-                              currentPage === 1 ? "bg-[#D7CCC8] text-white" : "text-gray-600 hover:bg-gray-100"
+                              currentPage === 1
+                                ? "bg-[#D7CCC8] text-white"
+                                : "text-gray-600 hover:bg-gray-100"
                             }`}
                           >
                             1
-                          </button>
+                          </button>,
                         );
-                        if (startPage > 2) pages.push(<span key="start-ellipsis" className="px-2">...</span>);
+                        if (startPage > 2)
+                          pages.push(
+                            <span key="start-ellipsis" className="px-2">
+                              ...
+                            </span>,
+                          );
                       }
 
                       for (let i = startPage; i <= endPage; i++) {
@@ -259,26 +332,35 @@ const SearchResults = () => {
                             key={i}
                             onClick={() => setCurrentPage(i)}
                             className={`px-3 py-2 rounded ${
-                              currentPage === i ? "bg-[#D7CCC8] text-white" : "text-gray-600 hover:bg-gray-100"
+                              currentPage === i
+                                ? "bg-[#D7CCC8] text-white"
+                                : "text-gray-600 hover:bg-gray-100"
                             }`}
                           >
                             {i}
-                          </button>
+                          </button>,
                         );
                       }
 
                       if (endPage < totalPages) {
-                        if (endPage < totalPages - 1) pages.push(<span key="end-ellipsis" className="px-2">...</span>);
+                        if (endPage < totalPages - 1)
+                          pages.push(
+                            <span key="end-ellipsis" className="px-2">
+                              ...
+                            </span>,
+                          );
                         pages.push(
                           <button
                             key={totalPages}
                             onClick={() => setCurrentPage(totalPages)}
                             className={`px-3 py-2 rounded ${
-                              currentPage === totalPages ? "bg-[#D7CCC8] text-white" : "text-gray-600 hover:bg-gray-100"
+                              currentPage === totalPages
+                                ? "bg-[#D7CCC8] text-white"
+                                : "text-gray-600 hover:bg-gray-100"
                             }`}
                           >
                             {totalPages}
-                          </button>
+                          </button>,
                         );
                       }
 
@@ -286,7 +368,9 @@ const SearchResults = () => {
                     })()}
 
                     <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      onClick={() =>
+                        setCurrentPage(Math.min(totalPages, currentPage + 1))
+                      }
                       disabled={currentPage === totalPages}
                       className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
                     >
@@ -297,7 +381,9 @@ const SearchResults = () => {
               </>
             ) : (
               <div className="text-center py-12">
-                <p className="text-gray-500">{t("catalog.noProducts") || "Mahsulot topilmadi"}</p>
+                <p className="text-gray-500">
+                  {t("catalog.noProducts") || "Mahsulot topilmadi"}
+                </p>
               </div>
             )}
           </div>
