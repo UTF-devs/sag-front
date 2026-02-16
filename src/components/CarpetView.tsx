@@ -11,7 +11,6 @@ import { RefreshCw, Image as ImageIcon, ArrowUpDown } from "lucide-react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { detectFloorWithSegFormer } from "../utils/floorDetection";
 import type { FloorMaskResult } from "../utils/floorDetection";
-import { getProxiedCarpetUrl } from "../utils/carpetImageProxy";
 import type { Carpet } from "../types/carpet";
 
 export type CarpetTransform = {
@@ -244,14 +243,49 @@ export default function CarpetView({
     ],
   );
 
+  // Get image URL - use proxy for CORS, extract if already proxied
+  const getImageUrl = useCallback((url: string | undefined): string => {
+    if (!url) return "";
+    
+    // If already proxied, extract direct URL first
+    if (url.includes("/api/carpet-image?url=")) {
+      try {
+        const decoded = decodeURIComponent(url.split("url=")[1] || url);
+        url = decoded;
+      } catch {
+        // Keep original if decode fails
+      }
+    }
+    
+    // Use proxy for remote URLs to avoid CORS issues
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      try {
+        const parsed = new URL(url);
+        // Only proxy if it's a different origin
+        if (parsed.origin !== window.location.origin) {
+          const proxiedUrl = `/api/carpet-image?url=${encodeURIComponent(url)}`;
+          console.log("[CarpetView] Using proxy URL for CORS:", proxiedUrl);
+          return proxiedUrl;
+        }
+      } catch {
+        // If URL parsing fails, return as is
+      }
+    }
+    
+    return url;
+  }, []);
+
+  const imageUrl = useMemo(() => getImageUrl(carpet?.image), [carpet?.image, getImageUrl]);
+
   // Debug: carpet image URL'ni console'ga chiqarish (carpetContainerStyle va maskStyle dan keyin)
   useEffect(() => {
     if (carpet?.image) {
-      console.log("[CarpetView] Carpet image URL:", carpet.image);
+      console.log("[CarpetView] Carpet image URL (original):", carpet.image);
+      console.log("[CarpetView] Carpet image URL (final):", imageUrl);
       console.log("[CarpetView] Carpet container style:", carpetContainerStyle);
       console.log("[CarpetView] Mask style:", maskStyle);
     }
-  }, [carpet?.image, carpetContainerStyle, maskStyle]);
+  }, [carpet?.image, imageUrl, carpetContainerStyle, maskStyle]);
 
   // Slider tortilganda document bo‘yicha move/up qabul qilish
   useEffect(() => {
@@ -543,7 +577,7 @@ export default function CarpetView({
                 >
                   <div className="relative w-full h-full" style={{ zIndex: 3 }}>
                     <img
-                      src={carpet?.image || ""}
+                      src={imageUrl}
                       alt={carpet?.name || "Carpet"}
                       className="shadow-2xl pointer-events-none w-full h-full"
                       style={{
@@ -552,34 +586,35 @@ export default function CarpetView({
                         visibility: "visible",
                         zIndex: 3,
                         position: "relative",
+                        // objectFit: "cover",
+                        width: "100%",
+                        height: "100%",
                       }}
                       draggable={false}
                       crossOrigin="anonymous"
                       onError={(e) => {
+                        const target = e.target as HTMLImageElement;
                         console.error(
                           "[CarpetView] Carpet image failed to load:",
-                          carpet?.image,
+                          {
+                            originalUrl: carpet?.image,
+                            finalUrl: imageUrl,
+                            currentSrc: target.src,
+                            isProxyUrl: target.src.includes("/api/carpet-image"),
+                            error: "CORS or network error - check proxy endpoint"
+                          },
                         );
-                        // Fallback: proxy URL'ni sinab ko'rish
-                        const target = e.target as HTMLImageElement;
-                        if (
-                          carpet?.image &&
-                          !target.src.includes("/api/carpet-image")
-                        ) {
-                          const proxiedUrl = getProxiedCarpetUrl(carpet.image);
-                          if (proxiedUrl !== carpet.image) {
-                            target.src = proxiedUrl;
-                          }
-                        }
                       }}
                       onLoad={(e) => {
+                        const target = e.target as HTMLImageElement;
                         console.log(
                           "[CarpetView] Carpet image loaded successfully:",
-                          carpet?.image,
-                          "Image dimensions:",
-                          (e.target as HTMLImageElement).naturalWidth,
-                          "x",
-                          (e.target as HTMLImageElement).naturalHeight,
+                          {
+                            originalUrl: carpet?.image,
+                            finalUrl: imageUrl,
+                            loadedSrc: target.src,
+                            dimensions: `${target.naturalWidth}x${target.naturalHeight}`,
+                          },
                         );
                       }}
                     />
