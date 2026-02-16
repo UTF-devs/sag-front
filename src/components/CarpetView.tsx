@@ -243,7 +243,7 @@ export default function CarpetView({
     ],
   );
 
-  // Get image URL - use proxy for CORS, extract if already proxied
+  // Get image URL - use proxy only in development, direct URL in production
   const getImageUrl = useCallback((url: string | undefined): string => {
     if (!url) return "";
     
@@ -257,14 +257,19 @@ export default function CarpetView({
       }
     }
     
-    // Use proxy for remote URLs to avoid CORS issues
-    if (url.startsWith("http://") || url.startsWith("https://")) {
+    // Check if we're in production (proxy endpoint may not exist)
+    const isProduction = window.location.hostname !== 'localhost' && 
+                         window.location.hostname !== '127.0.0.1';
+    
+    // In production, use direct URL (backend should handle CORS)
+    // In development, use proxy to avoid CORS issues
+    if (!isProduction && (url.startsWith("http://") || url.startsWith("https://"))) {
       try {
         const parsed = new URL(url);
         // Only proxy if it's a different origin
         if (parsed.origin !== window.location.origin) {
           const proxiedUrl = `/api/carpet-image?url=${encodeURIComponent(url)}`;
-          console.log("[CarpetView] Using proxy URL for CORS:", proxiedUrl);
+          console.log("[CarpetView] Using proxy URL for CORS (dev):", proxiedUrl);
           return proxiedUrl;
         }
       } catch {
@@ -272,6 +277,8 @@ export default function CarpetView({
       }
     }
     
+    // Production: use direct URL
+    console.log("[CarpetView] Using direct URL:", url);
     return url;
   }, []);
 
@@ -591,7 +598,6 @@ export default function CarpetView({
                         height: "100%",
                       }}
                       draggable={false}
-                      crossOrigin="anonymous"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         console.error(
