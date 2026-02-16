@@ -6,22 +6,30 @@ const IMAGENET_MEAN = [0.485, 0.456, 0.406]
 const IMAGENET_STD = [0.229, 0.224, 0.225]
 const USE_BGR = false
 const FLOOR_CLASS_INDEX = 3
+/** ADE20K-style class IDs for furniture: exclude these from floor mask (chair, sofa, table, bed, desk, cabinet). */
+const FURNITURE_CLASS_INDICES = new Set([8, 9, 11, 12, 13, 14])
+/** Subtract furniture pixels from floor mask when model predicts them. */
+const SUBTRACT_FURNITURE_FROM_FLOOR = true
 const BINARY_THRESHOLD = 0.5
-/** Keep small floor patches (e.g. under rugs). 0.003 = 0.3% of floor area; only remove speckle. */
-const MIN_COMPONENT_AREA_RATIO = 0.003
+/** Remove small floor patches. Higher (0.006) = remove areas under legs, thin bridges to furniture. */
+const MIN_COMPONENT_AREA_RATIO = 0.006
 /** true = use softmax threshold; false = argmax only. */
 const USE_SOFTMAX_THRESHOLD = true
-/** Include pixel as floor if P(floor) >= this. Yuqoriroq (0.32–0.35) = pol tepaga chiqmaydi, devor/mebel kirmaydi. */
-const FLOOR_PROB_THRESHOLD = 0.34
-/** Combine argmax + softmax: floor if (argmax=floor) OR (P(floor)>=threshold). Preserves boundaries + floor under carpets. */
-const USE_HYBRID_ARGMAX_SOFTMAX = true
+/** Include pixel as floor if P(floor) >= this. Higher = exclude furniture legs, only high-confidence floor. */
+const FLOOR_PROB_THRESHOLD = 0.44
+/** Use AND: floor only when (argmax=floor) AND (P(floor)>=threshold). Excludes low-confidence areas under legs. */
+const USE_HYBRID_AND = true
 const CONTRAST_STRETCH = true
 /** 3×3 close: kichik teshiklarni yopadi, chegarani haddan ortiq kengaytirmaydi. 2 = 5×5 (teparoqga chiqib ketadi). */
 const MORPH_CLOSE_RADIUS = 1
-/** Isotropic dilation: 0 = pol kengaymasin, qizil tepaga chiqmasin. */
-const EDGE_DILATE_ITERATIONS = 0
+/** Erosion iterations: shrink floor mask to remove thin bridges under furniture legs. */
+const ERODE_ITERATIONS = 1
+/** Opening: 1 dilation after erosion restores main floor while keeping thin bridges removed. */
+const EDGE_DILATE_ITERATIONS = 1
 /** Vertical dilation o‘chirildi: pol yuqoriga kengayib gilam tepasini kesmasin, devor/mebelga chiqmasin. */
 const VERTICAL_DILATE_ITERATIONS = 0
+/** Test-time augmentation: run on original + flipped, merge with AND for higher accuracy. */
+const USE_TTA = false
 
 let session: ort.InferenceSession | null = null
 
@@ -49,9 +57,9 @@ function loadImage(dataUrl: string): Promise<HTMLImageElement> {
 
 /**
  * Resize image to 512x512, optional contrast stretch, convert to CHW float32, ImageNet normalize.
- * Returns tensor shape [1, 3, 512, 512].
+ * If flipHorizontal, mirror the image for test-time augmentation.
  */
-function preprocessImage(img: HTMLImageElement): ort.Tensor {
+function preprocessImage(img: HTMLImageElement, flipHorizontal = false): ort.Tensor {
   const canvas = document.createElement('canvas')
   canvas.width = IMAGE_SIZE
   canvas.height = IMAGE_SIZE
@@ -59,6 +67,10 @@ function preprocessImage(img: HTMLImageElement): ort.Tensor {
   if (!ctx) throw new Error('Canvas 2d not available')
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
+  if (flipHorizontal) {
+    ctx.translate(IMAGE_SIZE, 0)
+    ctx.scale(-1, 1)
+  }
   ctx.drawImage(img, 0, 0, IMAGE_SIZE, IMAGE_SIZE)
   const imageData = ctx.getImageData(0, 0, IMAGE_SIZE, IMAGE_SIZE)
   const data = imageData.data
@@ -214,6 +226,28 @@ function morphologicalClose(
   return out
 }
 
+/** Single erosion (3×3): shrink mask to remove thin extensions under furniture legs. */
+function erodeOnce(mask: Uint8ClampedArray, width: number, height: number): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(mask.length)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let min = 255
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const ny = y + dy
+          const nx = x + dx
+          if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+            const v = mask[ny * width + nx]
+            if (v < min) min = v
+          }
+        }
+      }
+      out[y * width + x] = min
+    }
+  }
+  return out
+}
+
 /** Single dilation (3×3) to recover thin edges. */
 function dilateOnce(mask: Uint8ClampedArray, width: number, height: number): Uint8ClampedArray {
   const out = new Uint8ClampedArray(mask.length)
@@ -259,6 +293,128 @@ function dilateVerticalOnce(
         }
       }
       out[y * width + x] = max
+    }
+  }
+  return out
+}
+
+/**
+ * Fill holes (enclosed background) inside floor mask. Holes = 0-regions not touching image boundary.
+ */
+function fillHoles(
+  mask: Uint8ClampedArray,
+  width: number,
+  height: number,
+  maxHoleAreaRatio = 0.02,
+): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(mask)
+  const visited = new Uint8Array(mask.length)
+  const totalPixels = mask.length
+  const maxHoleArea = Math.floor(totalPixels * maxHoleAreaRatio)
+
+  const stack: number[] = []
+  const floodFromEdge = () => {
+    for (let x = 0; x < width; x++) {
+      const top = x
+      const bottom = (height - 1) * width + x
+      if (mask[top] === 0 && !visited[top]) {
+        stack.push(top)
+        visited[top] = 1
+      }
+      if (mask[bottom] === 0 && !visited[bottom]) {
+        stack.push(bottom)
+        visited[bottom] = 1
+      }
+    }
+    for (let y = 0; y < height; y++) {
+      const left = y * width
+      const right = y * width + (width - 1)
+      if (mask[left] === 0 && !visited[left]) {
+        stack.push(left)
+        visited[left] = 1
+      }
+      if (mask[right] === 0 && !visited[right]) {
+        stack.push(right)
+        visited[right] = 1
+      }
+    }
+    while (stack.length > 0) {
+      const i = stack.pop()!
+      const y = (i / width) | 0
+      const x = i % width
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue
+          const ny = y + dy
+          const nx = x + dx
+          if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+            const ni = ny * width + nx
+            if (mask[ni] === 0 && !visited[ni]) {
+              visited[ni] = 1
+              stack.push(ni)
+            }
+          }
+        }
+      }
+    }
+  }
+  floodFromEdge()
+
+  for (let seed = 0; seed < mask.length; seed++) {
+    if (mask[seed] !== 0 || visited[seed]) continue
+    stack.length = 0
+    stack.push(seed)
+    const points: number[] = []
+    visited[seed] = 1
+    while (stack.length > 0) {
+      const i = stack.pop()!
+      points.push(i)
+      const y = (i / width) | 0
+      const x = i % width
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue
+          const ny = y + dy
+          const nx = x + dx
+          if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+            const ni = ny * width + nx
+            if (mask[ni] === 0 && !visited[ni]) {
+              visited[ni] = 1
+              stack.push(ni)
+            }
+          }
+        }
+      }
+    }
+    if (points.length <= maxHoleArea) {
+      for (const idx of points) out[idx] = 255
+    }
+  }
+  return out
+}
+
+/**
+ * 3×3 mode (majority) filter: removes isolated pixels at boundaries.
+ */
+function modeFilter3x3(
+  mask: Uint8ClampedArray,
+  width: number,
+  height: number,
+): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(mask.length)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let count255 = 0
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const ny = y + dy
+          const nx = x + dx
+          if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+            if (mask[ny * width + nx] === 255) count255++
+          }
+        }
+      }
+      out[y * width + x] = count255 >= 5 ? 255 : 0
     }
   }
   return out
@@ -418,6 +574,35 @@ function maskToCssMaskDataUrl(mask: Uint8ClampedArray, width: number, height: nu
   return canvas.toDataURL('image/png')
 }
 
+/** Flip mask horizontally (for TTA merge). */
+function flipMaskHorizontal(
+  mask: Uint8ClampedArray,
+  width: number,
+  height: number,
+): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(mask.length)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      out[y * width + x] = mask[y * width + (width - 1 - x)]
+    }
+  }
+  return out
+}
+
+/** Merge two masks with AND: only floor where both agree. */
+function mergeMasksAnd(
+  mask1: Uint8ClampedArray,
+  mask2: Uint8ClampedArray,
+  _width: number,
+  _height: number,
+): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(mask1.length)
+  for (let i = 0; i < out.length; i++) {
+    out[i] = mask1[i] === 255 && mask2[i] === 255 ? 255 : 0
+  }
+  return out
+}
+
 /** Create a red overlay image from mask for visual debug (qirra yumshoqlamaydi). */
 function maskToRedOverlayDataUrl(mask: Uint8ClampedArray, width: number, height: number): string {
   const canvas = document.createElement('canvas')
@@ -437,32 +622,24 @@ function maskToRedOverlayDataUrl(mask: Uint8ClampedArray, width: number, height:
   return canvas.toDataURL('image/png')
 }
 
-export async function detectFloorWithSegFormer(imageDataUrl: string): Promise<FloorMaskResult> {
-  const img = await loadImage(imageDataUrl)
-  const width = img.naturalWidth
-  const height = img.naturalHeight
-  console.log('[FloorDetection] Original image size', width, 'x', height)
-
-  const inputTensor = preprocessImage(img)
+/** Run single inference and build raw floor mask (before post-processing). */
+async function runSingleInference(
+  img: HTMLImageElement,
+  flipHorizontal: boolean,
+): Promise<{ floorMaskSmall: Uint8ClampedArray; outW: number; outH: number }> {
+  const inputTensor = preprocessImage(img, flipHorizontal)
   const session = await getSession()
-
   const feeds: Record<string, ort.Tensor> = {}
   feeds[session.inputNames[0]] = inputTensor
 
-  console.log('[FloorDetection] Running inference...')
   const results = await session.run(feeds)
-  const outputName = session.outputNames[0]
-  const outputTensor = results[outputName]
+  const outputTensor = results[session.outputNames[0]]
   if (!outputTensor || !(outputTensor instanceof ort.Tensor)) {
     throw new Error('Model did not return a tensor')
   }
 
   const dims = outputTensor.dims
   const data = outputTensor.data as Float32Array
-
-  console.log('[FloorDetection] Output dims:', dims)
-  console.log('[FloorDetection] Output data (first 50):', Array.from(data.slice(0, 50)))
-
   const outH = dims.length >= 3 ? dims[dims.length - 2] : 128
   const outW = dims.length >= 3 ? dims[dims.length - 1] : 128
   const smallSize = outH * outW
@@ -470,78 +647,95 @@ export async function detectFloorWithSegFormer(imageDataUrl: string): Promise<Fl
   let floorMaskSmall: Uint8ClampedArray
 
   if (dims.length === 4 && dims[1] === 1) {
-    // Binary mask [1, 1, H, W] — tune BINARY_THRESHOLD (0.3–0.6) for best accuracy
-    console.log('[FloorDetection] Binary mask, threshold:', BINARY_THRESHOLD)
     floorMaskSmall = new Uint8ClampedArray(smallSize)
     for (let i = 0; i < smallSize; i++) {
       const v = data[i]
       floorMaskSmall[i] = v > BINARY_THRESHOLD ? 255 : 0
     }
   } else if (dims.length === 4 && dims[1] > 1) {
-    // Multi-class [1, C, H, W]
     const numClasses = dims[1]
     const classMap = argmaxClassDim(data, numClasses, outH, outW)
-    const uniqueIds = [...new Set(classMap)].sort((a, b) => a - b)
-    console.log('[FloorDetection] Unique class IDs:', uniqueIds)
 
     const floorProb =
-      USE_SOFTMAX_THRESHOLD || USE_HYBRID_ARGMAX_SOFTMAX
+      USE_SOFTMAX_THRESHOLD || USE_HYBRID_AND
         ? softmaxFloorProb(data, numClasses, outH, outW, FLOOR_CLASS_INDEX)
         : null
     floorMaskSmall = new Uint8ClampedArray(smallSize)
-    if (USE_HYBRID_ARGMAX_SOFTMAX && floorProb) {
+    if (USE_HYBRID_AND && floorProb) {
       for (let i = 0; i < smallSize; i++) {
         floorMaskSmall[i] =
-          classMap[i] === FLOOR_CLASS_INDEX || floorProb[i] >= FLOOR_PROB_THRESHOLD ? 255 : 0
+          classMap[i] === FLOOR_CLASS_INDEX && floorProb[i] >= FLOOR_PROB_THRESHOLD ? 255 : 0
       }
-      console.log('[FloorDetection] Hybrid: argmax=floor OR P(floor) >=', FLOOR_PROB_THRESHOLD)
     } else if (USE_SOFTMAX_THRESHOLD && floorProb) {
       for (let i = 0; i < smallSize; i++) {
         floorMaskSmall[i] = floorProb[i] >= FLOOR_PROB_THRESHOLD ? 255 : 0
       }
-      console.log('[FloorDetection] Softmax threshold: P(floor) >=', FLOOR_PROB_THRESHOLD)
     } else {
       for (let i = 0; i < smallSize; i++) {
         floorMaskSmall[i] = classMap[i] === FLOOR_CLASS_INDEX ? 255 : 0
       }
     }
 
-    const countByClass: Record<number, number> = {}
-    for (let i = 0; i < classMap.length; i++) {
-      const c = classMap[i]
-      countByClass[c] = (countByClass[c] ?? 0) + 1
+    if (SUBTRACT_FURNITURE_FROM_FLOOR) {
+      for (let i = 0; i < smallSize; i++) {
+        if (FURNITURE_CLASS_INDICES.has(classMap[i])) floorMaskSmall[i] = 0
+      }
     }
-    const sortedClasses = Object.entries(countByClass)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 15)
-    console.log(
-      '[FloorDetection] Pixel count per class (top 15):',
-      sortedClasses.map(([c, n]) => `class ${c}=${n}`).join(', '),
-    )
 
-    const floorPixels = floorMaskSmall.filter(v => v === 255).length
-    console.log(
-      '[FloorDetection] Floor class:',
-      FLOOR_CLASS_INDEX,
-      '| floor pixels:',
-      floorPixels,
-      '| total:',
-      smallSize,
-    )
   } else {
-    console.error('[FloorDetection] Unexpected output shape:', dims)
     throw new Error(`Unexpected output shape: ${JSON.stringify(dims)}`)
   }
 
-  // Post-process: 3×3 close, speckle olib tashlash, faqat isotropic dilate (vertical yo‘q — tepaga chiqmasin)
+  return { floorMaskSmall, outW, outH }
+}
+
+export async function detectFloorWithSegFormer(imageDataUrl: string): Promise<FloorMaskResult> {
+  const img = await loadImage(imageDataUrl)
+  const width = img.naturalWidth
+  const height = img.naturalHeight
+  console.log('[FloorDetection] Original image size', width, 'x', height)
+
+  let floorMaskSmall: Uint8ClampedArray
+  let outW: number
+  let outH: number
+
+  if (USE_TTA) {
+    console.log('[FloorDetection] Running TTA (original + flipped)...')
+    const [r1, r2] = await Promise.all([
+      runSingleInference(img, false),
+      runSingleInference(img, true),
+    ])
+    outW = r1.outW
+    outH = r1.outH
+    const mask2Flipped = flipMaskHorizontal(r2.floorMaskSmall, outW, outH)
+    floorMaskSmall = mergeMasksAnd(r1.floorMaskSmall, mask2Flipped, outW, outH)
+    console.log('[FloorDetection] TTA merge complete')
+  } else {
+    console.log('[FloorDetection] Running inference...')
+    const r = await runSingleInference(img, false)
+    floorMaskSmall = r.floorMaskSmall
+    outW = r.outW
+    outH = r.outH
+  }
+
+  // Post-process: close, remove speckle, erosion to exclude legs, opening (dilate), mode filter, hole fill
   floorMaskSmall = morphologicalClose(floorMaskSmall, outW, outH, MORPH_CLOSE_RADIUS)
   floorMaskSmall = removeSmallComponents(floorMaskSmall, outW, outH)
+  for (let k = 0; k < ERODE_ITERATIONS; k++) {
+    floorMaskSmall = erodeOnce(floorMaskSmall, outW, outH)
+  }
+  if (ERODE_ITERATIONS > 0) {
+    floorMaskSmall = removeSmallComponents(floorMaskSmall, outW, outH)
+  }
   for (let k = 0; k < EDGE_DILATE_ITERATIONS; k++) {
     floorMaskSmall = dilateOnce(floorMaskSmall, outW, outH)
   }
   for (let k = 0; k < VERTICAL_DILATE_ITERATIONS; k++) {
     floorMaskSmall = dilateVerticalOnce(floorMaskSmall, outW, outH)
   }
+
+  floorMaskSmall = modeFilter3x3(floorMaskSmall, outW, outH)
+  floorMaskSmall = fillHoles(floorMaskSmall, outW, outH)
 
   // Resize to original image size with nearest-neighbor
   const mask = resizeMask(floorMaskSmall, outW, outH, width, height)

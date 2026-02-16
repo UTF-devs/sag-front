@@ -220,18 +220,20 @@ export default function CarpetView({ carpet, onChangeCarpet, initialTransform }:
   const handleRoomUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    e.target.value = ''
     const reader = new FileReader()
     reader.onload = async event => {
       const dataUrl = event.target?.result
       if (typeof dataUrl !== 'string') return
-      setRoomImage(dataUrl)
       setFloorResult(null)
       setIsLoading(true)
+      setRoomImage(dataUrl)
       try {
         const result = await detectFloorWithSegFormer(dataUrl)
         setFloorResult(result)
       } catch (err) {
         console.error('[CarpetView] Floor detection error', err)
+        setFloorResult(null)
       } finally {
         setIsLoading(false)
       }
@@ -428,7 +430,7 @@ export default function CarpetView({ carpet, onChangeCarpet, initialTransform }:
               {/* {floorResult?.maskDebugDataUrl && (
                 <div
                   className='absolute inset-0 w-full h-full pointer-events-none'
-                  style={{ top: 10, left: 0, right: 0, bottom: 0 }}
+                  style={{ top: 0, left: 0, right: 0, bottom: 0 }}
                   aria-hidden
                 >
                   <img
@@ -441,7 +443,7 @@ export default function CarpetView({ carpet, onChangeCarpet, initialTransform }:
               )} */}
               <div
                 className='absolute left-0 right-0 pointer-events-none'
-                style={{ top: 20, bottom: 0, ...maskStyle }}
+                style={{ top: 10, bottom: 0, ...maskStyle }}
               >
                 <div
                   data-carpet-container
